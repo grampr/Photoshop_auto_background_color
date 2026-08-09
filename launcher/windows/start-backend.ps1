@@ -28,14 +28,14 @@ try {
         -RedirectStandardOutput (Join-Path $logRoot "backend.out.log") `
         -RedirectStandardError (Join-Path $logRoot "backend.err.log")
 
-    for ($attempt = 0; $attempt -lt 20; $attempt++) {
-        Start-Sleep -Milliseconds 250
+    for ($attempt = 0; $attempt -lt 240; $attempt++) {
+        Start-Sleep -Milliseconds 500
         try {
             Invoke-RestMethod -Uri "http://127.0.0.1:8765/v1/health" -TimeoutSec 1 | Out-Null
             exit 0
         } catch { }
     }
-    throw "Backend did not become ready. See $logRoot"
+    throw "Backend did not become ready within 120 seconds. See $logRoot"
 } finally {
     if ($created) { $mutex.ReleaseMutex() }
     $mutex.Dispose()

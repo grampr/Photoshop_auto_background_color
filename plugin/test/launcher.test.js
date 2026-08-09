@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { ensureBackend, LAUNCH_URL } = require("../src/api/launcher");
+const { ensureBackend, LAUNCH_URL, STARTUP_TIMEOUT_MS } = require("../src/api/launcher");
 
 test("does not launch a second backend when health is already ready", async () => {
   let launches = 0;
@@ -29,6 +29,7 @@ test("launches once and polls until the backend is ready", async () => {
   assert.equal(launches, 1);
   assert.equal(result.launched, true);
   assert.equal(LAUNCH_URL, "localautoharmonize://start");
+  assert.equal(STARTUP_TIMEOUT_MS, 120_000);
 });
 
 test("reports a launcher registration error", async () => {
