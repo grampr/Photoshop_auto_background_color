@@ -1,4 +1,4 @@
-.venv/
+≠rá^—f•ñÿ¶{M¨y 'v√Æ∂õ≠.venv/
 .venv-test/
 .code-review-graph/
 artifacts/
@@ -10,5 +10,9 @@ __pycache__/
 *.py[cod]
 *.log
 models/*.pth
-vendor/Harmonizer/
+vendor/
+docs/images/cat-sky-original.jpg
+docs/images/cat-sky-fast.jpg
+docs/images/cat-sky-ai.jpg
+docs/images/cat-sky-mask.png
 node_modules/

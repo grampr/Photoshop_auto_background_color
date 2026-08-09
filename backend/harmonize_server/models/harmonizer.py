@@ -1,4 +1,4 @@
-from pathlib import Path
+≠rá^—f•ñÿ¶{M¨y 'v√Æ∂õ≠from pathlib import Path
 import sys
 from typing import Optional
 
@@ -42,7 +42,7 @@ class HarmonizerBackend(HarmonizationBackend):
         from src import model as official_model
 
         harmonizer = official_model.Harmonizer().to(self.device)
-        state = torch.load(str(self.weights), map_location=self.device)
+        state = torch.load(str(self.weights), map_location=self.device, weights_only=True)
         harmonizer.load_state_dict(state, strict=True)
         harmonizer.eval()
         self._model = harmonizer
@@ -63,4 +63,3 @@ class HarmonizerBackend(HarmonizationBackend):
             output = model.restore_image(comp_tensor, mask_tensor, arguments)[-1]
         rgb = output[0].detach().clamp(0, 1).cpu().numpy().transpose(1, 2, 0)
         return np.rint(rgb * 255.0).astype(np.uint8)
-
