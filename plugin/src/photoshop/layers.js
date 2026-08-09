@@ -18,10 +18,26 @@ function findGroupByID(groupID) {
   return findLayerByID(app.activeDocument.layers, groupID);
 }
 
+function findAdjustmentGroups(layers, result = []) {
+  for (const layer of layers) {
+    if (layer.name === GROUP_NAME && layer.layers) result.push(layer);
+    if (layer.layers && layer.layers.length) findAdjustmentGroups(layer.layers, result);
+  }
+  return result;
+}
+
+async function removeAdjustmentGroupsInModal(document) {
+  const groups = findAdjustmentGroups(document.layers);
+  for (const group of groups) await group.delete();
+}
+
 async function createAdjustmentGroup(foregroundID, corrections, enabled) {
   let groupID;
   await core.executeAsModal(async () => {
     const document = app.activeDocument;
+    // A document must have at most one correction stack. This also recovers
+    // previews left behind by queued clicks or a previous panel session.
+    await removeAdjustmentGroupsInModal(document);
     const foreground = findLayerByID(document.layers, foregroundID) || document.activeLayers[0];
     const group = await document.createLayerGroup({ name: GROUP_NAME });
     group.move(foreground, constants.ElementPlacement.PLACEBEFORE);
@@ -52,4 +68,18 @@ async function removeGroup(groupID) {
   }, { commandName: "自動色合わせをリセット" });
 }
 
-module.exports = { createAdjustmentGroup, setGroupVisibility, removeGroup, GROUP_NAME };
+async function removeAdjustmentGroups() {
+  await core.executeAsModal(async () => {
+    const document = app.activeDocument;
+    if (document) await removeAdjustmentGroupsInModal(document);
+  }, { commandName: "自動色合わせをすべてリセット" });
+}
+
+module.exports = {
+  createAdjustmentGroup,
+  setGroupVisibility,
+  removeGroup,
+  removeAdjustmentGroups,
+  findAdjustmentGroups,
+  GROUP_NAME
+};

@@ -2,7 +2,7 @@ const { entrypoints } = require("uxp");
 const { analyzeImages } = require("./api/client");
 const { ensureBackend } = require("./api/launcher");
 const { listLayerChoices, captureLayers } = require("./photoshop/pixels");
-const { createAdjustmentGroup, setGroupVisibility, removeGroup } = require("./photoshop/layers");
+const { createAdjustmentGroup, setGroupVisibility, removeAdjustmentGroups } = require("./photoshop/layers");
 const { formatResults } = require("./ui/format");
 
 const state = {
@@ -14,6 +14,7 @@ const state = {
 };
 let backendStartup = null;
 let initialized = false;
+let operationInProgress = false;
 const $ = (id) => document.getElementById(id);
 
 function setStatus(message, kind = "success", detail = "") {
@@ -82,6 +83,9 @@ async function connectBackend() {
 }
 
 async function runBusy(label, operation, activeButton = null) {
+  // Disabling a button does not cancel click events already queued by UXP.
+  if (operationInProgress) return;
+  operationInProgress = true;
   const startedAt = Date.now();
   const originalButtonText = activeButton ? activeButton.textContent : "";
   const updateElapsed = () => {
@@ -106,15 +110,15 @@ async function runBusy(label, operation, activeButton = null) {
     $("activity").setAttribute("aria-busy", "false");
     if (activeButton) activeButton.textContent = originalButtonText;
     document.querySelectorAll("button").forEach((button) => { button.disabled = false; });
+    operationInProgress = false;
   }
 }
 
 async function analyze() {
   if (!state.foregroundID || !state.backgroundID) throw new Error("前景レイヤーと背景レイヤーを設定してください。");
-  if (state.groupID) {
-    await removeGroup(state.groupID);
-    state.groupID = null;
-  }
+  await removeAdjustmentGroups();
+  state.groupID = null;
+  state.previewVisible = false;
   const capture = await captureLayers(state.foregroundID, state.backgroundID, 512);
   state.result = await analyzeImages(capture, { mode: $("mode").value, strength: Number($("strength").value) });
   $("results").textContent = formatResults(state.result);
@@ -161,12 +165,12 @@ function wireEvents() {
     await ensurePreview();
     await setGroupVisibility(state.groupID, true);
     state.previewVisible = true;
-    state.groupID = null;
     return "非破壊調整レイヤーとして適用しました";
   }, $("apply")));
   $("reset").addEventListener("click", () => runBusy("リセットしています…", async () => {
-    if (state.groupID) await removeGroup(state.groupID);
+    await removeAdjustmentGroups();
     state.groupID = null;
+    state.previewVisible = false;
     state.result = null;
     $("results").textContent = "前景と背景を設定して解析してください。";
     return "リセットしました";
