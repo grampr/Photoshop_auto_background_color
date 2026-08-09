@@ -1,10 +1,12 @@
 const { entrypoints } = require("uxp");
-const { analyzeImages, health } = require("./api/client");
+const { analyzeImages } = require("./api/client");
+const { ensureBackend } = require("./api/launcher");
 const { listLayerChoices, captureLayers } = require("./photoshop/pixels");
 const { createAdjustmentGroup, setGroupVisibility, removeGroup } = require("./photoshop/layers");
 const { formatResults } = require("./ui/format");
 
 const state = { foregroundID: null, result: null, groupID: null, previewVisible: false };
+let backendStartup = null;
 const $ = (id) => document.getElementById(id);
 
 function setStatus(message, error = false) {
@@ -30,6 +32,19 @@ function enabledOptions() {
   const result = {};
   document.querySelectorAll("#matchOptions input").forEach((input) => { result[input.dataset.key] = input.checked; });
   return result;
+}
+
+async function connectBackend() {
+  if (!backendStartup) {
+    backendStartup = ensureBackend({ onStatus: (message) => setStatus(message) });
+  }
+  const startup = backendStartup;
+  try {
+    const { info, launched } = await startup;
+    setStatus(`Backend ready — ${info.device}${launched ? " (started)" : ""}`);
+  } finally {
+    if (backendStartup === startup) backendStartup = null;
+  }
 }
 
 async function runBusy(label, operation) {
@@ -93,11 +108,15 @@ function wireEvents() {
     $("results").textContent = "Analyze a foreground/background pair.";
     setStatus("Reset complete");
   }));
+  $("startBackend").addEventListener("click", () => runBusy("Connecting to backend…", connectBackend));
 }
 
 entrypoints.setup({ panels: { autoHarmonizePanel: { show() { refreshLayers(); } } } });
 document.addEventListener("DOMContentLoaded", () => {
   wireEvents();
   refreshLayers();
-  health().then((info) => setStatus(`Backend ready — ${info.device}`)).catch(() => setStatus("Start the local Python backend", true));
+  connectBackend().catch((error) => {
+    console.error(error);
+    setStatus(`${error.message} Use “Start local backend” to retry.`, true);
+  });
 });

@@ -13,7 +13,7 @@ fieldset { border: 1px solid var(--uxp-host-border-color); padding: 8px; }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
 button { min-height: 28px; }
 .secondary { opacity: .85; }
+.wide { width: 100%; margin-top: 8px; }
 #status { margin: 12px 0 6px; min-height: 16px; }
 #status.error { color: #ff7a7a; }
 #results { margin: 0; padding: 9px; min-height: 160px; white-space: pre-wrap; background: rgba(0,0,0,.16); border-radius: 3px; font: 11px ui-monospace, monospace; }
-

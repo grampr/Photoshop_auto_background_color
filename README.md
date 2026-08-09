@@ -10,6 +10,7 @@
 Photoshop UXP panel
   ├─ Imaging API: 前景・背景を最大512pxのRGBAとして取得
   ├─ 前景alphaをForeground Maskとして抽出
+  ├─ 起動時health確認 → OSランチャー → backend自動起動
   └─ localhost:8765/v1/analyze
           ↓
 FastAPI (Adobe非依存)
@@ -72,7 +73,7 @@ python -m pip install --upgrade pip
 pip install -r requirements-dev.txt
 ```
 
-起動:
+手動起動（自動ランチャーを使わない場合）:
 
 ```bash
 uvicorn --app-dir backend harmonize_server.main:app --host 127.0.0.1 --port 8765
@@ -108,7 +109,26 @@ export HARMONIZER_WEIGHTS=/Users/me/models/harmonizer.pth
 
 推論デバイスは `CUDA → MPS → CPU` の順で自動選択されます。BalancedはモデルがなければOpenCVへフォールバックし、AIは503と明確な案内を返します。
 
-### 3. Photoshop Developer Mode / UXP Developer Tool
+### 3. 自動起動ランチャー
+
+プラグインはパネルを開くとlocalhost APIを確認し、停止中の場合だけ `localautoharmonize://start` を呼び出します。ランチャーは二重起動を防ぎ、CUDA/MPS/CPU設定を引き継いでバックエンドを非表示で開始します。標準UXPのセキュリティ仕様により、初回起動時はPhotoshopが外部プロセス起動の確認を表示します。
+
+Windows PowerShell:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\launcher\windows\install-launcher.ps1
+```
+
+macOS:
+
+```bash
+chmod +x launcher/macos/*.sh
+./launcher/macos/install-launcher.sh
+```
+
+Windowsのログは `%LOCALAPPDATA%\LocalAutoHarmonize\logs`、macOSは `~/Library/Logs/LocalAutoHarmonize` に保存されます。プロジェクトを移動した場合はインストールスクリプトを再実行してください。
+
+### 4. Photoshop Developer Mode / UXP Developer Tool
 
 1. Creative Cloud DesktopからPhotoshopと **UXP Developer Tool** をインストールします。
 2. Photoshopの「プラグイン」設定でDeveloper Modeを有効にして再起動します。
@@ -121,12 +141,13 @@ Manifest v5のnetwork権限は `127.0.0.1:8765` と `localhost:8765` のみに�
 ## 使い方
 
 1. 前景レイヤーをPhotoshopで選択します。透明度がマスクになります。
-2. パネルの更新ボタンを押し、Backgroundを選びます。
-3. Strength、Match項目、Modeを選びます。
-4. **Analyze** で補正値を確認します。
-5. **Preview** で調整グループを作成／表示切替します。
-6. **Apply** で表示中の非破壊グループを確定します。元レイヤーの画素は変更しません。
-7. Apply前なら **Reset** でプレビューグループを削除できます。Apply後はPhotoshopの履歴またはレイヤーパネルで取り消せます。
+2. パネルを開くとバックエンドが自動起動します。失敗時は **Start local backend** で再試行できます。
+3. パネルの更新ボタンを押し、Backgroundを選びます。
+4. Strength、Match項目、Modeを選びます。
+5. **Analyze** で補正値を確認します。
+6. **Preview** で調整グループを作成／表示切替します。
+7. **Apply** で表示中の非破壊グループを確定します。元レイヤーの画素は変更しません。
+8. Apply前なら **Reset** でプレビューグループを削除できます。Apply後はPhotoshopの履歴またはレイヤーパネルで取り消せます。
 
 Mode:
 
@@ -190,6 +211,7 @@ npm test
 - Selective ColorとCamera Raw FilterはMVPでは生成しません。推定値が安定して再編集できるCurves、Color Balance、Hue/Saturation、Exposureを優先しています。
 - 8/16/32bit文書から解析用8bit sRGBへ変換するため、HDRの完全な階調一致は対象外です。
 - HarmonizerのMPS動作はモデル内演算とPyTorchバージョンに依存し、未対応演算ではCPUが必要です。
+- 標準UXPの外部起動にはユーザー同意が必須です。完全に無確認で起動するには、Adobe Hybrid Plugin SDKによる署名済みネイティブアドオンが必要です。
 
 ## ライセンス
 
