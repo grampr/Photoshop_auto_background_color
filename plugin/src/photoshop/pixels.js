@@ -1,4 +1,4 @@
-const { app, imaging } = require("photoshop");
+const { app, imaging, core } = require("photoshop");
 
 function allLayers(layers, result = []) {
   for (const layer of layers) {
@@ -66,10 +66,13 @@ async function captureLayers(foregroundID, backgroundID, maxSize = 512) {
   const bounds = foreground.boundsNoEffects;
   const normalizedBounds = { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom };
   const size = targetSize(normalizedBounds, maxSize);
-  const [foregroundPixels, backgroundPixels] = await Promise.all([
-    rgbaForLayer(document.id, foregroundID, normalizedBounds, size),
-    rgbaForLayer(document.id, backgroundID, normalizedBounds, size)
-  ]);
+  // Photoshop 2026 requires Imaging API reads to run inside a modal scope.
+  // Keep only the local pixel capture modal; API communication and AI inference
+  // happen after this function returns so Photoshop remains responsive.
+  const { foregroundPixels, backgroundPixels } = await core.executeAsModal(async () => ({
+    foregroundPixels: await rgbaForLayer(document.id, foregroundID, normalizedBounds, size),
+    backgroundPixels: await rgbaForLayer(document.id, backgroundID, normalizedBounds, size)
+  }), { commandName: "解析用画像を取得" });
   const mask = new Uint8Array(size.width * size.height);
   for (let index = 0; index < mask.length; index++) mask[index] = foregroundPixels[index * 4 + 3];
   return { foreground: foregroundPixels, background: backgroundPixels, mask, ...size };
