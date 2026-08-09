@@ -7,6 +7,17 @@ import numpy as np
 from .metrics import analyze_image, make_background_context_mask
 
 
+# Preserve recognizable foreground colors. Background context is a lighting cue,
+# not a target palette; these limits prevent blue skies and other dominant areas
+# from repainting skin, hair, fur, or costumes in Fast mode.
+MAX_CONTRAST = 25.0
+MAX_SATURATION = 20.0
+MAX_TEMPERATURE = 18.0
+MAX_TINT = 12.0
+MAX_TONE_CHANNEL = 18.0
+COLOR_MATCH_FACTOR = 0.62
+
+
 def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
@@ -14,7 +25,11 @@ def _clamp(value: float, low: float, high: float) -> float:
 def _tone_delta(source: list[float], target: list[float]) -> dict[str, float]:
     delta = np.asarray(target) - np.asarray(source)
     delta -= delta.mean() * 0.35  # keep color cast while suppressing pure exposure duplication
-    return {channel: round(_clamp(float(value), -30, 30), 2) for channel, value in zip("rgb", delta)}
+    delta *= COLOR_MATCH_FACTOR
+    return {
+        channel: round(_clamp(float(value), -MAX_TONE_CHANNEL, MAX_TONE_CHANNEL), 2)
+        for channel, value in zip("rgb", delta)
+    }
 
 
 def _curve(source: dict[str, Any], target: dict[str, Any]) -> list[list[int]]:
@@ -39,10 +54,24 @@ def corrections_from_metrics(source: dict[str, Any], target: dict[str, Any]) -> 
     return {
         "exposure": round(_clamp(exposure, -2.0, 2.0), 3),
         "gamma": round(gamma, 3),
-        "contrast": round(_clamp(contrast, -35.0, 35.0), 2),
-        "saturation": round(_clamp(saturation, -35.0, 35.0), 2),
-        "temperature": round(_clamp(target["temperature"] - source["temperature"], -30.0, 30.0), 2),
-        "tint": round(_clamp(target["tint"] - source["tint"], -30.0, 30.0), 2),
+        "contrast": round(_clamp(contrast * 0.75, -MAX_CONTRAST, MAX_CONTRAST), 2),
+        "saturation": round(_clamp(saturation * 0.7, -MAX_SATURATION, MAX_SATURATION), 2),
+        "temperature": round(
+            _clamp(
+                (target["temperature"] - source["temperature"]) * COLOR_MATCH_FACTOR,
+                -MAX_TEMPERATURE,
+                MAX_TEMPERATURE,
+            ),
+            2,
+        ),
+        "tint": round(
+            _clamp(
+                (target["tint"] - source["tint"]) * COLOR_MATCH_FACTOR,
+                -MAX_TINT,
+                MAX_TINT,
+            ),
+            2,
+        ),
         "shadows": _tone_delta(source["tones"]["shadows"], target["tones"]["shadows"]),
         "midtones": _tone_delta(source["tones"]["midtones"], target["tones"]["midtones"]),
         "highlights": _tone_delta(source["tones"]["highlights"], target["tones"]["highlights"]),
@@ -87,4 +116,3 @@ def blend_corrections(classic: dict[str, Any], ai: dict[str, Any], ai_weight: fl
     # AI-derived curve is the most useful white-box approximation.
     result["rgb_curve"] = ai["rgb_curve"] if ai_weight >= 0.5 else classic["rgb_curve"]
     return result
-
