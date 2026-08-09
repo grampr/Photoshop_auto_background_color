@@ -6,49 +6,52 @@
   </head>
   <body>
     <main>
-      <h1>Local Auto Harmonize</h1>
+      <h1>ローカル自動色合わせ</h1>
       <section class="field">
-        <label>Foreground</label>
-        <div class="row"><span id="foregroundName">No layer selected</span><button id="refreshLayers">↻</button></div>
+        <label>前景レイヤー</label>
+        <div class="row"><span id="foregroundName">未設定</span><button id="setForeground">選択中を設定</button></div>
       </section>
       <section class="field">
-        <label for="backgroundLayer">Background</label>
+        <label>背景レイヤー</label>
+        <div class="row"><span id="backgroundName">未設定</span><button id="setBackground">選択中を設定</button></div>
+        <label for="backgroundLayer" class="sub-label">候補から選択</label>
         <select id="backgroundLayer"></select>
+        <button id="refreshLayers" class="secondary wide">レイヤー候補を更新</button>
       </section>
       <section class="field">
-        <div class="row"><label for="strength">Strength</label><output id="strengthValue">55%</output></div>
+        <div class="row"><label for="strength">補正の強さ</label><output id="strengthValue">55%</output></div>
         <input id="strength" type="range" min="0" max="100" value="55" />
       </section>
       <fieldset>
-        <legend>Match</legend>
+        <legend>合わせる項目</legend>
         <div id="matchOptions" class="checks">
-          <label><input type="checkbox" data-key="exposure" checked /> Exposure</label>
-          <label><input type="checkbox" data-key="temperature" checked /> Temperature</label>
-          <label><input type="checkbox" data-key="tint" checked /> Tint</label>
-          <label><input type="checkbox" data-key="contrast" checked /> Contrast</label>
-          <label><input type="checkbox" data-key="saturation" checked /> Saturation</label>
-          <label><input type="checkbox" data-key="shadows" checked /> Shadows</label>
-          <label><input type="checkbox" data-key="midtones" checked /> Midtones</label>
-          <label><input type="checkbox" data-key="highlights" checked /> Highlights</label>
+          <label><input type="checkbox" data-key="exposure" checked /> 露出</label>
+          <label><input type="checkbox" data-key="temperature" checked /> 色温度</label>
+          <label><input type="checkbox" data-key="tint" checked /> 色かぶり</label>
+          <label><input type="checkbox" data-key="contrast" checked /> コントラスト</label>
+          <label><input type="checkbox" data-key="saturation" checked /> 彩度</label>
+          <label><input type="checkbox" data-key="shadows" checked /> シャドウ</label>
+          <label><input type="checkbox" data-key="midtones" checked /> 中間調</label>
+          <label><input type="checkbox" data-key="highlights" checked /> ハイライト</label>
         </div>
       </fieldset>
       <section class="field">
-        <label for="mode">Mode</label>
+        <label for="mode">処理モード</label>
         <select id="mode">
-          <option value="fast">Fast — OpenCV</option>
-          <option value="balanced" selected>Balanced</option>
-          <option value="ai">AI — Harmonizer</option>
+          <option value="fast">高速 — OpenCVのみ</option>
+          <option value="balanced" selected>バランス — OpenCV＋AI</option>
+          <option value="ai">AI優先 — Harmonizer</option>
         </select>
       </section>
       <div class="actions">
-        <button id="analyze">Analyze</button>
-        <button id="preview">Preview</button>
-        <button id="apply">Apply</button>
-        <button id="reset" class="secondary">Reset</button>
+        <button id="analyze">解析</button>
+        <button id="preview">プレビュー</button>
+        <button id="apply">適用</button>
+        <button id="reset" class="secondary">リセット</button>
       </div>
-      <button id="startBackend" class="secondary wide">Start local backend</button>
-      <div id="status" role="status">Ready</div>
-      <pre id="results">Analyze a foreground/background pair.</pre>
+      <button id="startBackend" class="secondary wide">ローカルAIを起動</button>
+      <div id="status" role="status">準備中</div>
+      <pre id="results">前景と背景を設定して解析してください。</pre>
     </main>
     <script src="src/index.js"></script>
   </body>

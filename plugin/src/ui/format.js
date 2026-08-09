@@ -11,16 +11,15 @@ function formatResults(response) {
   const c = response.corrections;
   const warning = response.warnings.length ? `\n\n${response.warnings.join("\n")}` : "";
   return [
-    `Engine: ${response.engine} (${response.device})`,
-    `Exposure: ${signed(c.exposure, 2)}`,
-    `Temperature: ${signed(c.temperature)}`,
-    `Tint: ${signed(c.tint)}`,
-    `Contrast: ${signed(c.contrast)}`,
-    `Saturation: ${signed(c.saturation)}`,
+    `エンジン: ${response.engine} (${response.device})`,
+    `露出: ${signed(c.exposure, 2)}`,
+    `色温度: ${signed(c.temperature)}`,
+    `色かぶり: ${signed(c.tint)}`,
+    `コントラスト: ${signed(c.contrast)}`,
+    `彩度: ${signed(c.saturation)}`,
     "",
-    tone("Shadow", c.shadows), "", tone("Midtone", c.midtones), "", tone("Highlight", c.highlights)
+    tone("シャドウ", c.shadows), "", tone("中間調", c.midtones), "", tone("ハイライト", c.highlights)
   ].join("\n") + warning;
 }
 
 module.exports = { formatResults, signed };
-

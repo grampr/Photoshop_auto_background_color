@@ -1,8 +1,8 @@
 {
   "manifestVersion": 5,
   "id": "com.local-auto-harmonize.photoshop",
-  "name": "Local Auto Harmonize",
-  "version": "0.2.0",
+  "name": "ローカル自動色合わせ",
+  "version": "0.2.1",
   "main": "index.html",
   "host": {
     "app": "PS",
@@ -23,7 +23,7 @@
     {
       "type": "panel",
       "id": "autoHarmonizePanel",
-      "label": { "default": "Local Auto Harmonize" },
+      "label": { "default": "ローカル自動色合わせ" },
       "minimumSize": { "width": 280, "height": 520 },
       "preferredDockedSize": { "width": 320, "height": 680 }
     }

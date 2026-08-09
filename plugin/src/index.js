@@ -5,7 +5,13 @@ const { listLayerChoices, captureLayers } = require("./photoshop/pixels");
 const { createAdjustmentGroup, setGroupVisibility, removeGroup } = require("./photoshop/layers");
 const { formatResults } = require("./ui/format");
 
-const state = { foregroundID: null, result: null, groupID: null, previewVisible: false };
+const state = {
+  foregroundID: null,
+  backgroundID: null,
+  result: null,
+  groupID: null,
+  previewVisible: false,
+};
 let backendStartup = null;
 const $ = (id) => document.getElementById(id);
 
@@ -15,9 +21,9 @@ function setStatus(message, error = false) {
 }
 
 function refreshLayers() {
-  const { foreground, backgrounds } = listLayerChoices();
+  const { foreground, backgrounds } = listLayerChoices(state.foregroundID);
   state.foregroundID = foreground ? foreground.id : null;
-  $("foregroundName").textContent = foreground ? foreground.name : "No layer selected";
+  $("foregroundName").textContent = foreground ? foreground.name : "未設定";
   const select = $("backgroundLayer");
   select.innerHTML = "";
   for (const layer of backgrounds) {
@@ -26,6 +32,26 @@ function refreshLayers() {
     option.textContent = layer.name;
     select.appendChild(option);
   }
+  const selected = backgrounds.find((layer) => layer.id === state.backgroundID) || backgrounds[0] || null;
+  state.backgroundID = selected ? selected.id : null;
+  if (selected) select.value = String(selected.id);
+  $("backgroundName").textContent = selected ? selected.name : "未設定";
+}
+
+function assignActiveLayer(role) {
+  const { active } = listLayerChoices(state.foregroundID);
+  if (!active) throw new Error("Photoshopでレイヤーを1つ選択してください。");
+  if (role === "foreground") {
+    state.foregroundID = active.id;
+    if (state.backgroundID === active.id) state.backgroundID = null;
+    refreshLayers();
+    setStatus(`前景を「${active.name}」に設定しました`);
+    return;
+  }
+  if (active.id === state.foregroundID) throw new Error("前景とは別のレイヤーを背景に選択してください。");
+  state.backgroundID = active.id;
+  refreshLayers();
+  setStatus(`背景を「${active.name}」に設定しました`);
 }
 
 function enabledOptions() {
@@ -36,12 +62,12 @@ function enabledOptions() {
 
 async function connectBackend() {
   if (!backendStartup) {
-    backendStartup = ensureBackend({ onStatus: (message) => setStatus(message) });
+    backendStartup = ensureBackend({ onStatus: () => setStatus("ローカルAIを起動しています…") });
   }
   const startup = backendStartup;
   try {
     const { info, launched } = await startup;
-    setStatus(`Backend ready — ${info.device}${launched ? " (started)" : ""}`);
+    setStatus(`バックエンド準備完了 — ${info.device}${launched ? "（自動起動）" : ""}`);
   } finally {
     if (backendStartup === startup) backendStartup = null;
   }
@@ -61,15 +87,15 @@ async function runBusy(label, operation) {
 }
 
 async function analyze() {
-  if (!state.foregroundID || !$("backgroundLayer").value) throw new Error("Choose foreground and background layers.");
+  if (!state.foregroundID || !state.backgroundID) throw new Error("前景レイヤーと背景レイヤーを設定してください。");
   if (state.groupID) {
     await removeGroup(state.groupID);
     state.groupID = null;
   }
-  const capture = await captureLayers(state.foregroundID, Number($("backgroundLayer").value), 512);
+  const capture = await captureLayers(state.foregroundID, state.backgroundID, 512);
   state.result = await analyzeImages(capture, { mode: $("mode").value, strength: Number($("strength").value) });
   $("results").textContent = formatResults(state.result);
-  setStatus("Analysis complete");
+  setStatus("解析が完了しました");
 }
 
 async function ensurePreview() {
@@ -84,31 +110,38 @@ async function ensurePreview() {
 
 function wireEvents() {
   $("refreshLayers").addEventListener("click", refreshLayers);
+  $("setForeground").addEventListener("click", () => runBusy("前景を設定しています…", async () => assignActiveLayer("foreground")));
+  $("setBackground").addEventListener("click", () => runBusy("背景を設定しています…", async () => assignActiveLayer("background")));
+  $("backgroundLayer").addEventListener("change", () => {
+    state.backgroundID = Number($("backgroundLayer").value) || null;
+    const selected = $("backgroundLayer").options[$("backgroundLayer").selectedIndex];
+    $("backgroundName").textContent = selected ? selected.textContent : "未設定";
+  });
   $("strength").addEventListener("input", () => { $("strengthValue").textContent = `${$("strength").value}%`; });
-  $("analyze").addEventListener("click", () => runBusy("Analyzing…", analyze));
-  $("preview").addEventListener("click", () => runBusy("Updating preview…", async () => {
+  $("analyze").addEventListener("click", () => runBusy("解析しています…", analyze));
+  $("preview").addEventListener("click", () => runBusy("プレビューを更新しています…", async () => {
     const created = await ensurePreview();
     if (!created) {
       state.previewVisible = !state.previewVisible;
       await setGroupVisibility(state.groupID, state.previewVisible);
     }
-    setStatus(state.previewVisible ? "Preview on" : "Preview off");
+    setStatus(state.previewVisible ? "プレビュー：オン" : "プレビュー：オフ");
   }));
-  $("apply").addEventListener("click", () => runBusy("Applying…", async () => {
+  $("apply").addEventListener("click", () => runBusy("適用しています…", async () => {
     await ensurePreview();
     await setGroupVisibility(state.groupID, true);
     state.previewVisible = true;
     state.groupID = null;
-    setStatus("Applied non-destructively");
+    setStatus("非破壊調整レイヤーとして適用しました");
   }));
-  $("reset").addEventListener("click", () => runBusy("Resetting…", async () => {
+  $("reset").addEventListener("click", () => runBusy("リセットしています…", async () => {
     if (state.groupID) await removeGroup(state.groupID);
     state.groupID = null;
     state.result = null;
-    $("results").textContent = "Analyze a foreground/background pair.";
-    setStatus("Reset complete");
+    $("results").textContent = "前景と背景を設定して解析してください。";
+    setStatus("リセットしました");
   }));
-  $("startBackend").addEventListener("click", () => runBusy("Connecting to backend…", connectBackend));
+  $("startBackend").addEventListener("click", () => runBusy("バックエンドへ接続しています…", connectBackend));
 }
 
 entrypoints.setup({ panels: { autoHarmonizePanel: { show() { refreshLayers(); } } } });
@@ -117,6 +150,6 @@ document.addEventListener("DOMContentLoaded", () => {
   refreshLayers();
   connectBackend().catch((error) => {
     console.error(error);
-    setStatus(`${error.message} Use “Start local backend” to retry.`, true);
+    setStatus(`${error.message} 「ローカルAIを起動」で再試行してください。`, true);
   });
 });

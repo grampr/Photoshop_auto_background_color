@@ -8,14 +8,18 @@ function allLayers(layers, result = []) {
   return result;
 }
 
-function listLayerChoices() {
+function listLayerChoices(foregroundID = null) {
   const document = app.activeDocument;
-  if (!document) return { foreground: null, backgrounds: [] };
-  const foreground = document.activeLayers[0] || null;
-  const backgrounds = allLayers(document.layers).filter(
+  if (!document) return { active: null, foreground: null, backgrounds: [] };
+  const layers = allLayers(document.layers);
+  const active = document.activeLayers[0] || null;
+  // Keep the explicitly chosen foreground when the user selects another layer
+  // in Photoshop to assign it as the background.
+  const foreground = layers.find((layer) => layer.id === foregroundID) || active;
+  const backgrounds = layers.filter(
     (layer) => !foreground || layer.id !== foreground.id
   );
-  return { foreground, backgrounds };
+  return { active, foreground, backgrounds };
 }
 
 function targetSize(bounds, maxSize) {
@@ -54,9 +58,11 @@ async function rgbaForLayer(documentID, layerID, bounds, size) {
 
 async function captureLayers(foregroundID, backgroundID, maxSize = 512) {
   const document = app.activeDocument;
-  if (!document) throw new Error("Open a Photoshop document first.");
+  if (!document) throw new Error("先にPhotoshopでドキュメントを開いてください。");
   const foreground = allLayers(document.layers).find((layer) => layer.id === foregroundID);
-  if (!foreground) throw new Error("Foreground layer no longer exists.");
+  if (!foreground) throw new Error("設定した前景レイヤーが見つかりません。もう一度設定してください。");
+  const background = allLayers(document.layers).find((layer) => layer.id === backgroundID);
+  if (!background) throw new Error("設定した背景レイヤーが見つかりません。もう一度設定してください。");
   const bounds = foreground.boundsNoEffects;
   const normalizedBounds = { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom };
   const size = targetSize(normalizedBounds, maxSize);
@@ -70,4 +76,3 @@ async function captureLayers(foregroundID, backgroundID, maxSize = 512) {
 }
 
 module.exports = { listLayerChoices, captureLayers, allLayers, targetSize };
-

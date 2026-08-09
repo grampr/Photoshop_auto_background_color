@@ -5,6 +5,7 @@ main { padding: 12px; }
 h1 { font-size: 16px; margin: 0 0 14px; }
 .field, fieldset { margin: 0 0 12px; }
 label, legend { color: var(--uxp-host-label-text-color); }
+.sub-label { display: block; margin-top: 7px; font-size: 11px; opacity: .8; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: var(--gap); }
 select, input[type="range"] { width: 100%; margin-top: 5px; }
 fieldset { border: 1px solid var(--uxp-host-border-color); padding: 8px; }
@@ -12,6 +13,7 @@ fieldset { border: 1px solid var(--uxp-host-border-color); padding: 8px; }
 .checks label { display: flex; align-items: center; gap: 5px; }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
 button { min-height: 28px; }
+.row button { flex: 0 0 auto; }
 .secondary { opacity: .85; }
 .wide { width: 100%; margin-top: 8px; }
 #status { margin: 12px 0 6px; min-height: 16px; }

@@ -1,7 +1,7 @@
 const { health } = require("./client");
 
 const LAUNCH_URL = "localautoharmonize://start";
-const CONSENT_TEXT = "Local Auto HarmonizeのローカルAIバックエンドを起動します。画像はPC外へ送信されません。";
+const CONSENT_TEXT = "ローカル自動色合わせのAIバックエンドを起動します。画像はPC外へ送信されません。";
 
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -26,7 +26,7 @@ async function ensureBackend(options = {}) {
   }
 
   const launchError = await launchImpl();
-  if (launchError) throw new Error(`Could not start the local backend: ${launchError}`);
+  if (launchError) throw new Error(`ローカルAIを起動できませんでした: ${launchError}`);
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     await delayImpl(500);
@@ -36,7 +36,7 @@ async function ensureBackend(options = {}) {
       // The Python runtime and AI model can take several seconds to initialize.
     }
   }
-  throw new Error("The launcher ran, but the backend did not become ready within 10 seconds.");
+  throw new Error("ランチャーは起動しましたが、10秒以内にローカルAIの準備が完了しませんでした。");
 }
 
 module.exports = { ensureBackend, launchBackend, LAUNCH_URL };

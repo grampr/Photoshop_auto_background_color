@@ -1,7 +1,7 @@
 const { app, action, core, constants } = require("photoshop");
 const { adjustmentDescriptors } = require("./descriptors");
 
-const GROUP_NAME = "Auto Harmonize";
+const GROUP_NAME = "自動色合わせ";
 
 function findLayerByID(layers, layerID) {
   for (const layer of layers) {
@@ -33,23 +33,23 @@ async function createAdjustmentGroup(foregroundID, corrections, enabled) {
     }
     // The whole correction stack is clipped to the foreground below the group.
     group.isClippingMask = true;
-  }, { commandName: "Local Auto Harmonize" });
+  }, { commandName: "自動色合わせを作成" });
   return groupID;
 }
 
 async function setGroupVisibility(groupID, visible) {
   await core.executeAsModal(async () => {
     const group = findGroupByID(groupID);
-    if (!group) throw new Error("Preview group was removed.");
+    if (!group) throw new Error("プレビュー用の調整グループが削除されています。");
     group.visible = visible;
-  }, { commandName: "Toggle Auto Harmonize Preview" });
+  }, { commandName: "自動色合わせのプレビュー切替" });
 }
 
 async function removeGroup(groupID) {
   await core.executeAsModal(async () => {
     const group = findGroupByID(groupID);
     if (group) await group.delete();
-  }, { commandName: "Reset Auto Harmonize" });
+  }, { commandName: "自動色合わせをリセット" });
 }
 
 module.exports = { createAdjustmentGroup, setGroupVisibility, removeGroup, GROUP_NAME };
