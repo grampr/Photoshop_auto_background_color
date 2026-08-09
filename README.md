@@ -45,6 +45,7 @@ plugin/
   src/ui/         表示
 backend/tests/    API・画像・解析・推論契約テスト
 plugin/test/      UXP通信・batchPlay記述テスト
+scripts/          ローカル比較画像の再現スクリプト
 ```
 
 ## インストール
@@ -135,6 +136,32 @@ Mode:
 
 `POST /v1/harmonize` はモデル統合・診断用にPNGを返しますが、Photoshopプラグインの通常フローはこの画像を焼き付けず、`/analyze` のJSON補正値だけを使います。
 
+## 実例: 猫を空の背景へ合成
+
+前景の猫をローカルのU²-Net軽量モデルで切り抜き、空の背景へ配置して、同じ画像をFastとAIで解析しました。解析解像度は最大768px、Strengthは差が分かりやすい100%です。実行環境はWindows 11、GeForce RTX 4080、PyTorch 2.5.1 + CUDA 12.4です。
+
+![猫と空の合成に対するOriginal、Fast、AIの比較](docs/images/cat-sky-comparison.jpg)
+
+| 補正値 | Fast / OpenCV | AI / Harmonizer |
+|---|---:|---:|
+| Exposure | +0.182 | -0.014 |
+| Temperature | -30.00 | -8.73 |
+| Tint | -12.55 | -3.86 |
+| Contrast | -20.76 | -4.93 |
+| Saturation | -12.13 | -3.84 |
+| Midtone RGB | -30.00 / +13.39 / +30.00 | -8.85 / +1.58 / +7.55 |
+
+Fastは背景周辺の寒色傾向を強く反映します。AIは元の茶色い毛並みを維持しながら、中間調とハイライトへ弱い青を足し、コントラストを少し下げました。右端はHarmonizerの生成画像そのものではありません。Harmonizer出力との差から逆算したExposure、Curves、Color Balance、Hue/Saturation相当のJSONを、プレビュー用レンダラーで適用した結果です。実際のプラグインは同じ値をPhotoshopの非破壊調整レイヤーへ変換します。全補正値は [`cat-sky-corrections.json`](docs/images/cat-sky-corrections.json) で確認できます。
+
+比較画像は次のコマンドで再生成できます。背景除去はデモ作成だけに使い、Photoshop内では前景レイヤーの透明度をマスクとして使用します。
+
+```powershell
+pip install rembg==2.0.61 onnxruntime==1.19.2
+python scripts/create_demo_comparison.py `
+  "D:\path\to\cat.jpg" "D:\path\to\sky.jpg" `
+  --rembg-model u2netp --strength 100
+```
+
 ## テスト
 
 ```bash
@@ -177,6 +204,10 @@ npm test
 | OpenCV | 画像解析 | Apache-2.0 |
 | Pillow | 画像互換性 | HPND |
 | PyTorch / TorchVision | AI推論 | BSD-3-Clause |
+| rembg | READMEデモ用の背景除去 | [MIT](https://github.com/danielgatis/rembg/blob/main/LICENSE.txt) |
+| U²-Net / u2netp | READMEデモ用の前景マスク | [Apache-2.0](https://github.com/xuebinqin/U-2-Net/blob/master/LICENSE) |
 | pytest | テスト | MIT |
 
 Harmonizer由来コードや重みを本ソフトと一緒に再配布する場合、CC BY-NC-SA 4.0の表示・非商用・ShareAlike条件が適用され得ます。本READMEは法的助言ではありません。商用製品化にはHarmonizer作者から別ライセンスを取得するか、商用利用可能な別バックエンドへ差し替えてください。
+
+`docs/images/cat-sky-comparison.jpg` の素材写真はリポジトリ所有者の提供物で、本リポジトリのApache-2.0ライセンス対象には含まれません。
