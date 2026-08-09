@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="src/ui/panel.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Local Auto Harmonize</h1>
+      <section class="field">
+        <label>Foreground</label>
+        <div class="row"><span id="foregroundName">No layer selected</span><button id="refreshLayers">↻</button></div>
+      </section>
+      <section class="field">
+        <label for="backgroundLayer">Background</label>
+        <select id="backgroundLayer"></select>
+      </section>
+      <section class="field">
+        <div class="row"><label for="strength">Strength</label><output id="strengthValue">70%</output></div>
+        <input id="strength" type="range" min="0" max="100" value="70" />
+      </section>
+      <fieldset>
+        <legend>Match</legend>
+        <div id="matchOptions" class="checks">
+          <label><input type="checkbox" data-key="exposure" checked /> Exposure</label>
+          <label><input type="checkbox" data-key="temperature" checked /> Temperature</label>
+          <label><input type="checkbox" data-key="tint" checked /> Tint</label>
+          <label><input type="checkbox" data-key="contrast" checked /> Contrast</label>
+          <label><input type="checkbox" data-key="saturation" checked /> Saturation</label>
+          <label><input type="checkbox" data-key="shadows" checked /> Shadows</label>
+          <label><input type="checkbox" data-key="midtones" checked /> Midtones</label>
+          <label><input type="checkbox" data-key="highlights" checked /> Highlights</label>
+        </div>
+      </fieldset>
+      <section class="field">
+        <label for="mode">Mode</label>
+        <select id="mode">
+          <option value="fast">Fast — OpenCV</option>
+          <option value="balanced" selected>Balanced</option>
+          <option value="ai">AI — Harmonizer</option>
+        </select>
+      </section>
+      <div class="actions">
+        <button id="analyze">Analyze</button>
+        <button id="preview">Preview</button>
+        <button id="apply">Apply</button>
+        <button id="reset" class="secondary">Reset</button>
+      </div>
+      <div id="status" role="status">Ready</div>
+      <pre id="results">Analyze a foreground/background pair.</pre>
+    </main>
+    <script src="src/index.js"></script>
+  </body>
+</html>
+

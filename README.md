@@ -1,2 +1,182 @@
-# Photoshop_auto_background_color
-画像を合成するときに全自動で色彩を調整するやつ
+# Local Auto Harmonize — Photoshop MVP
+
+人物などの前景レイヤーを背景へ馴染ませる、完全ローカル動作のPhotoshop UXPプラグインです。OpenCVによる白箱解析と、任意で[ZHKKKe/Harmonizer](https://github.com/ZHKKKe/Harmonizer)の出力を教師画像として使う逆推定を行い、結果をPhotoshopの再編集可能な調整レイヤーへ変換します。画像をクラウドへ送信しません。
+
+> MVPです。色解析・API・調整レイヤー記述は自動テスト済みですが、Photoshopのバージョン差があるため、実機でのUXP読み込みと `batchPlay` は対象バージョンごとの確認が必要です。
+
+## アーキテクチャ
+
+```text
+Photoshop UXP panel
+  ├─ Imaging API: 前景・背景を最大512pxのRGBAとして取得
+  ├─ 前景alphaをForeground Maskとして抽出
+  └─ localhost:8765/v1/analyze
+          ↓
+FastAPI (Adobe非依存)
+  ├─ analysis/: Lab統計、ヒストグラム、階調別解析
+  ├─ models/: HarmonizationBackend抽象クラス
+  │    └─ HarmonizerBackend（外部checkoutへのアダプター）
+  └─ AI出力との差をExposure/Curve/Color Balance等へ逆推定
+          ↓ JSON
+Photoshop
+  └─ Auto Harmonizeグループ（前景へクリッピング）
+       ├─ Curves
+       ├─ Color Balance
+       ├─ Hue/Saturation
+       └─ Exposure
+```
+
+Adobe連携は `plugin/`、画像解析・推論は `backend/harmonize_server/` に分離しています。DCCFやPHNetは `HarmonizationBackend` を実装してServiceへ注入すれば追加できます。After Effects対応時もPython側は再利用できます。
+
+背景は画像全体の単純平均へ合わせません。前景マスクを膨張した周辺領域から背景の文脈色を取り、Lab、5/95パーセンタイル、絶対輝度帯別の色を比較します。各推定値には上限を設け、最後に `correction = estimated_difference × strength` を適用します。
+
+## リポジトリ構成
+
+```text
+backend/harmonize_server/
+  api/            FastAPIルート
+  analysis/       OpenCV統計・補正値推定
+  color/          Lab変換・重み付き統計
+  models/         AIバックエンド抽象化とHarmonizerアダプター
+  utils/          画像I/O、デバイス選択
+plugin/
+  src/api/        localhostクライアント
+  src/photoshop/  ピクセル取得、調整レイヤー生成
+  src/ui/         表示
+backend/tests/    API・画像・解析・推論契約テスト
+plugin/test/      UXP通信・batchPlay記述テスト
+```
+
+## インストール
+
+### 1. Python backend
+
+Python 3.9〜3.12を使用してください。PyTorchがPython 3.13以降へ対応していない構成があるため、現時点では上限を設けています。
+
+Windows PowerShell:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements-dev.txt
+```
+
+macOS:
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements-dev.txt
+```
+
+起動:
+
+```bash
+uvicorn --app-dir backend harmonize_server.main:app --host 127.0.0.1 --port 8765
+```
+
+`http://127.0.0.1:8765/v1/health` が `{"status":"ok",...}` を返せば準備完了です。外部公開を避けるため `127.0.0.1` のまま起動してください。
+
+### 2. Harmonizer（Balanced / AIモード）
+
+Harmonizer本体と学習済み重みは **CC BY-NC-SA 4.0** であり、商用利用が禁止されています。そのため本リポジトリには同梱せず、自動ダウンロードもしません。利用者自身がライセンスへ同意したうえで手動配置してください。
+
+```bash
+git clone https://github.com/ZHKKKe/Harmonizer.git vendor/Harmonizer
+```
+
+公式READMEから `harmonizer.pth` を取得し、`models/harmonizer.pth` へ置きます。次に使用環境に合うPyTorchを[公式インストール手順](https://pytorch.org/get-started/locally/)で導入します。例:
+
+```bash
+pip install -r requirements-ai.txt
+```
+
+別の場所へ置く場合:
+
+```powershell
+$env:HARMONIZER_REPO = "D:\models\Harmonizer"
+$env:HARMONIZER_WEIGHTS = "D:\models\harmonizer.pth"
+```
+
+```bash
+export HARMONIZER_REPO=/Users/me/models/Harmonizer
+export HARMONIZER_WEIGHTS=/Users/me/models/harmonizer.pth
+```
+
+推論デバイスは `CUDA → MPS → CPU` の順で自動選択されます。BalancedはモデルがなければOpenCVへフォールバックし、AIは503と明確な案内を返します。
+
+### 3. Photoshop Developer Mode / UXP Developer Tool
+
+1. Creative Cloud DesktopからPhotoshopと **UXP Developer Tool** をインストールします。
+2. Photoshopの「プラグイン」設定でDeveloper Modeを有効にして再起動します。
+3. UXP Developer Toolで **Add Plugin** を選び、`plugin/manifest.json` を指定します。
+4. **Load** を押します。
+5. Photoshopの `Plugins > Local Auto Harmonize` からパネルを開きます。
+
+Manifest v5のnetwork権限は `127.0.0.1:8765` と `localhost:8765` のみに制限しています。対応の根拠はAdobe公式の[Manifest v5 network permissions](https://developer.adobe.com/photoshop/uxp/2022/guides/uxp-guide/uxp-misc/manifest-v5/)および[Imaging API](https://developer.adobe.com/photoshop/uxp/2022/ps_reference/media/imaging/)です。
+
+## 使い方
+
+1. 前景レイヤーをPhotoshopで選択します。透明度がマスクになります。
+2. パネルの更新ボタンを押し、Backgroundを選びます。
+3. Strength、Match項目、Modeを選びます。
+4. **Analyze** で補正値を確認します。
+5. **Preview** で調整グループを作成／表示切替します。
+6. **Apply** で表示中の非破壊グループを確定します。元レイヤーの画素は変更しません。
+7. Apply前なら **Reset** でプレビューグループを削除できます。Apply後はPhotoshopの履歴またはレイヤーパネルで取り消せます。
+
+Mode:
+
+- **Fast**: OpenCVのみ。
+- **Balanced**: OpenCV推定55% + Harmonizer教師推定45%相当。モデルなしならFastへフォールバック。
+- **AI**: Harmonizer教師推定を主体にし、OpenCVを安定化用に混合。
+
+`POST /v1/harmonize` はモデル統合・診断用にPNGを返しますが、Photoshopプラグインの通常フローはこの画像を焼き付けず、`/analyze` のJSON補正値だけを使います。
+
+## テスト
+
+```bash
+pytest
+cd plugin
+npm test
+```
+
+実モデル推論テストはライセンス済みのモデル配置後に環境変数を設定して実行すると有効になります。それ以外ではskipされ、モデルアダプターとAI教師画像の契約はFake backendで検証されます。
+
+検証対象は、API生成・health、PNG/RGBA画像読み込み、alphaマスク、OpenCV全統計、Strength、Fast/Balanced/AI JSON、Harmonizer呼び出し契約、PNG推論レスポンス、UXP multipart通信、調整レイヤーdescriptor生成です。
+
+## 対応環境
+
+- Photoshop 24.0以降（Manifest上の最小値）。Imaging APIとUXP実装差を考慮し、最新のPhotoshopでの利用を推奨。
+- Windows 10/11: NVIDIA CUDAまたはCPU。
+- macOS 12.3以降: Apple Silicon MPSまたはCPU。Intel MacはCPU。
+- Python 3.9〜3.12。
+
+## 既知の問題
+
+- Photoshop実機をCIから操作できないため、UXP起動と調整レイヤー生成はdescriptor契約テストまでです。PhotoshopのマイナーバージョンによりColor Balanceやクリッピングの `batchPlay` descriptor調整が必要な場合があります。
+- 調整グループを前景レイヤーへクリップする方式は、複雑なPass Throughグループ、特殊ブレンド、スマートオブジェクト階層で見え方が変わることがあります。
+- Backgroundは前景boundsに対応する領域を取得します。変形済みレイヤーや異なる座標系のスマートオブジェクトはずれる場合があります。
+- Temperature/TintはCamera Rawの内部モデルではなく、Lab差をColor Balanceへ近似変換します。
+- Selective ColorとCamera Raw FilterはMVPでは生成しません。推定値が安定して再編集できるCurves、Color Balance、Hue/Saturation、Exposureを優先しています。
+- 8/16/32bit文書から解析用8bit sRGBへ変換するため、HDRの完全な階調一致は対象外です。
+- HarmonizerのMPS動作はモデル内演算とPyTorchバージョンに依存し、未対応演算ではCPUが必要です。
+
+## ライセンス
+
+本リポジトリ独自コードは[Apache License 2.0](LICENSE)です。主要依存OSSのライセンスは次の通りです（配布・商用利用前に各原文を再確認してください）。
+
+| OSS | 用途 | ライセンス |
+|---|---|---|
+| ZHKKKe/Harmonizer | AI harmonization | [CC BY-NC-SA 4.0](https://github.com/ZHKKKe/Harmonizer#license) — 非商用、表示、同一条件 |
+| FastAPI | localhost API | MIT |
+| Uvicorn | ASGI server | BSD-3-Clause |
+| NumPy | 数値計算 | BSD-3-Clause |
+| OpenCV | 画像解析 | Apache-2.0 |
+| Pillow | 画像互換性 | HPND |
+| PyTorch / TorchVision | AI推論 | BSD-3-Clause |
+| pytest | テスト | MIT |
+
+Harmonizer由来コードや重みを本ソフトと一緒に再配布する場合、CC BY-NC-SA 4.0の表示・非商用・ShareAlike条件が適用され得ます。本READMEは法的助言ではありません。商用製品化にはHarmonizer作者から別ライセンスを取得するか、商用利用可能な別バックエンドへ差し替えてください。

@@ -1,0 +1,14 @@
+.venv/
+.venv-test/
+.code-review-graph/
+artifacts/
+dist/
+pytest-cache-files-*/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+*.py[cod]
+*.log
+models/*.pth
+vendor/Harmonizer/
+node_modules/
