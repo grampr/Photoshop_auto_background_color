@@ -11,9 +11,10 @@ label, legend { color: var(--uxp-host-label-text-color); }
 .row { display: flex; align-items: center; justify-content: space-between; gap: var(--gap); }
 select, input[type="range"] { width: 100%; margin-top: 5px; }
 fieldset { border: 1px solid var(--uxp-host-border-color); padding: 8px; }
-.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-.checks label { display: flex; align-items: center; gap: 5px; }
-.actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+.checks { display: flex; flex-wrap: wrap; gap: 7px; }
+.checks label { display: flex; flex: 1 0 45%; align-items: center; gap: 5px; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--gap); }
+.actions button { flex: 1 0 45%; }
 .primary-actions { margin: 2px 0 8px; }
 .primary-actions #analyze { color: white; background: #1473e6; border-color: #1473e6; font-weight: 600; }
 button { min-height: 28px; }
