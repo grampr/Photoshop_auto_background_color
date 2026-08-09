@@ -1,6 +1,6 @@
 {
   "name": "local-auto-harmonize-uxp",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "private": true,
   "scripts": { "test": "node --test test/*.test.js" }
 }

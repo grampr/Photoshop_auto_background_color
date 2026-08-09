@@ -41,3 +41,15 @@ test("reports a launcher registration error", async () => {
     /No application is registered/,
   );
 });
+
+test("includes the last health error after startup polling expires", async () => {
+  await assert.rejects(
+    ensureBackend({
+      healthImpl: async () => { throw new Error("Network request failed"); },
+      launchImpl: async () => "",
+      delayImpl: async () => {},
+      attempts: 2,
+    }),
+    /最後の通信エラー: Network request failed/,
+  );
+});

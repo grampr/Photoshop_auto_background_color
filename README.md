@@ -136,7 +136,7 @@ Windowsのログは `%LOCALAPPDATA%\LocalAutoHarmonize\logs`、macOSは `~/Libra
 4. **Load** を押します。
 5. Photoshopの `Plugins > Local Auto Harmonize` からパネルを開きます。
 
-Manifest v5のnetwork権限は `127.0.0.1:8765` と `localhost:8765` のみに制限しています。対応の根拠はAdobe公式の[Manifest v5 network permissions](https://developer.adobe.com/photoshop/uxp/2022/guides/uxp-guide/uxp-misc/manifest-v5/)および[Imaging API](https://developer.adobe.com/photoshop/uxp/2022/ps_reference/media/imaging/)です。
+Manifest v5のnetwork権限は `http://localhost/` のみに制限しています。UXPの許可判定との互換性を保つため、Manifestではポートを付けず、実際のAPI接続先を `http://localhost:8765` としています。対応の根拠はAdobe公式の[Manifest v5 network permissions](https://developer.adobe.com/photoshop/uxp/2022/guides/uxp-guide/uxp-misc/manifest-v5/)および[Imaging API](https://developer.adobe.com/photoshop/uxp/2022/ps_reference/media/imaging/)です。
 
 ## 使い方
 

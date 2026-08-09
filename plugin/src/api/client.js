@@ -1,4 +1,4 @@
-const BASE_URL = "http://127.0.0.1:8765/v1";
+const BASE_URL = "http://localhost:8765/v1";
 
 function rawBlob(bytes) {
   return new Blob([bytes], { type: "application/octet-stream" });
@@ -35,4 +35,3 @@ async function health(fetchImpl = fetch) {
 }
 
 module.exports = { analyzeImages, health, BASE_URL };
-
