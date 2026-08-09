@@ -10,7 +10,7 @@ function allLayers(layers, result = []) {
 
 function listLayerChoices(foregroundID = null) {
   const document = app.activeDocument;
-  if (!document) return { active: null, foreground: null, backgrounds: [] };
+  if (!document) return { active: null, foreground: null, backgrounds: [], layers: [] };
   const layers = allLayers(document.layers);
   const active = document.activeLayers[0] || null;
   // Keep the explicitly chosen foreground when the user selects another layer
@@ -19,7 +19,7 @@ function listLayerChoices(foregroundID = null) {
   const backgrounds = layers.filter(
     (layer) => !foreground || layer.id !== foreground.id
   );
-  return { active, foreground, backgrounds };
+  return { active, foreground, backgrounds, layers };
 }
 
 function targetSize(bounds, maxSize) {

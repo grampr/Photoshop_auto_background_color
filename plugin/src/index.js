@@ -13,6 +13,7 @@ const state = {
   previewVisible: false,
 };
 let backendStartup = null;
+let initialized = false;
 const $ = (id) => document.getElementById(id);
 
 function setStatus(message, kind = "success", detail = "") {
@@ -21,21 +22,28 @@ function setStatus(message, kind = "success", detail = "") {
   $("activity").className = `status-card ${kind}`;
 }
 
-function refreshLayers() {
-  const { foreground, backgrounds } = listLayerChoices(state.foregroundID);
-  state.foregroundID = foreground ? foreground.id : null;
-  $("foregroundName").textContent = foreground ? foreground.name : "未設定";
-  const select = $("backgroundLayer");
+function populateLayerSelect(select, layers, selectedID) {
   select.innerHTML = "";
-  for (const layer of backgrounds) {
+  for (const layer of layers) {
     const option = document.createElement("option");
     option.value = String(layer.id);
     option.textContent = layer.name;
     select.appendChild(option);
   }
+  if (selectedID) select.value = String(selectedID);
+}
+
+function refreshLayers() {
+  const choices = listLayerChoices(state.foregroundID);
+  const foreground = choices.layers.find((layer) => layer.id === state.foregroundID) || choices.foreground;
+  state.foregroundID = foreground ? foreground.id : null;
+  $("foregroundName").textContent = foreground ? foreground.name : "未設定";
+  populateLayerSelect($("foregroundLayer"), choices.layers, state.foregroundID);
+
+  const backgrounds = choices.layers.filter((layer) => layer.id !== state.foregroundID);
   const selected = backgrounds.find((layer) => layer.id === state.backgroundID) || backgrounds[0] || null;
   state.backgroundID = selected ? selected.id : null;
-  if (selected) select.value = String(selected.id);
+  populateLayerSelect($("backgroundLayer"), backgrounds, state.backgroundID);
   $("backgroundName").textContent = selected ? selected.name : "未設定";
 }
 
@@ -127,10 +135,17 @@ function wireEvents() {
   $("refreshLayers").addEventListener("click", refreshLayers);
   $("setForeground").addEventListener("click", () => runBusy("前景を設定しています…", async () => assignActiveLayer("foreground"), $("setForeground")));
   $("setBackground").addEventListener("click", () => runBusy("背景を設定しています…", async () => assignActiveLayer("background"), $("setBackground")));
+  $("foregroundLayer").addEventListener("change", () => {
+    state.foregroundID = Number($("foregroundLayer").value) || null;
+    if (state.backgroundID === state.foregroundID) state.backgroundID = null;
+    refreshLayers();
+    setStatus(`前景を「${$("foregroundName").textContent}」に設定しました`);
+  });
   $("backgroundLayer").addEventListener("change", () => {
     state.backgroundID = Number($("backgroundLayer").value) || null;
     const selected = $("backgroundLayer").options[$("backgroundLayer").selectedIndex];
     $("backgroundName").textContent = selected ? selected.textContent : "未設定";
+    setStatus(`背景を「${$("backgroundName").textContent}」に設定しました`);
   });
   $("strength").addEventListener("input", () => { $("strengthValue").textContent = `${$("strength").value}%`; });
   $("analyze").addEventListener("click", () => runBusy("画像を解析しています…", analyze, $("analyze")));
@@ -159,9 +174,15 @@ function wireEvents() {
   $("startBackend").addEventListener("click", () => runBusy("バックエンドへ接続しています…", connectBackend, $("startBackend")));
 }
 
-entrypoints.setup({ panels: { autoHarmonizePanel: { show() { refreshLayers(); } } } });
-document.addEventListener("DOMContentLoaded", () => {
+function initialize() {
+  if (initialized) return;
+  initialized = true;
   wireEvents();
   refreshLayers();
   runBusy("ローカルAIへ接続しています…", connectBackend);
-});
+}
+
+entrypoints.setup({ panels: { autoHarmonizePanel: { show() { if (initialized) refreshLayers(); } } } });
+// The script is placed after the panel markup, so the controls already exist.
+// Direct initialization avoids missing DOMContentLoaded in some UXP host versions.
+initialize();

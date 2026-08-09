@@ -26,6 +26,7 @@ test("keeps an explicitly assigned foreground while another layer is active", ()
 
   assert.equal(choices.active.id, background.id);
   assert.equal(choices.foreground.id, foreground.id);
+  assert.deepEqual(choices.layers.map((layer) => layer.id), [foreground.id, background.id]);
   assert.deepEqual(choices.backgrounds.map((layer) => layer.id), [background.id]);
 });
 
