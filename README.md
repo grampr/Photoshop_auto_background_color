@@ -1,0 +1,2 @@
+# Photoshop_auto_background_color
+画像を合成するときに全自動で色彩を調整するやつ
