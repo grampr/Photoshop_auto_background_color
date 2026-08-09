@@ -50,7 +50,13 @@
         <button id="reset" class="secondary">リセット</button>
       </div>
       <button id="startBackend" class="secondary wide">ローカルAIを起動</button>
-      <div id="status" role="status">準備中</div>
+      <div id="activity" class="status-card idle" role="status" aria-live="polite">
+        <span class="status-indicator" aria-hidden="true"></span>
+        <div class="status-copy">
+          <div id="status">準備中</div>
+          <div id="statusDetail">処理待ち</div>
+        </div>
+      </div>
       <pre id="results">前景と背景を設定して解析してください。</pre>
     </main>
     <script src="src/index.js"></script>

@@ -15,9 +15,10 @@ const state = {
 let backendStartup = null;
 const $ = (id) => document.getElementById(id);
 
-function setStatus(message, error = false) {
+function setStatus(message, kind = "success", detail = "") {
   $("status").textContent = message;
-  $("status").className = error ? "error" : "";
+  $("statusDetail").textContent = detail;
+  $("activity").className = `status-card ${kind}`;
 }
 
 function refreshLayers() {
@@ -45,13 +46,12 @@ function assignActiveLayer(role) {
     state.foregroundID = active.id;
     if (state.backgroundID === active.id) state.backgroundID = null;
     refreshLayers();
-    setStatus(`前景を「${active.name}」に設定しました`);
-    return;
+    return `前景を「${active.name}」に設定しました`;
   }
   if (active.id === state.foregroundID) throw new Error("前景とは別のレイヤーを背景に選択してください。");
   state.backgroundID = active.id;
   refreshLayers();
-  setStatus(`背景を「${active.name}」に設定しました`);
+  return `背景を「${active.name}」に設定しました`;
 }
 
 function enabledOptions() {
@@ -62,26 +62,41 @@ function enabledOptions() {
 
 async function connectBackend() {
   if (!backendStartup) {
-    backendStartup = ensureBackend({ onStatus: () => setStatus("ローカルAIを起動しています…") });
+    backendStartup = ensureBackend();
   }
   const startup = backendStartup;
   try {
     const { info, launched } = await startup;
-    setStatus(`バックエンド準備完了 — ${info.device}${launched ? "（自動起動）" : ""}`);
+    return `バックエンド準備完了 — ${info.device}${launched ? "（自動起動）" : ""}`;
   } finally {
     if (backendStartup === startup) backendStartup = null;
   }
 }
 
-async function runBusy(label, operation) {
-  setStatus(label);
+async function runBusy(label, operation, activeButton = null) {
+  const startedAt = Date.now();
+  const originalButtonText = activeButton ? activeButton.textContent : "";
+  const updateElapsed = () => {
+    const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+    $("statusDetail").textContent = `処理中 • ${seconds}秒`;
+  };
+  setStatus(label, "busy", "処理中 • 0.0秒");
+  $("activity").setAttribute("aria-busy", "true");
   document.querySelectorAll("button").forEach((button) => { button.disabled = true; });
+  if (activeButton) activeButton.textContent = "処理中…";
+  const timer = setInterval(updateElapsed, 250);
   try {
-    await operation();
+    const completionMessage = await operation();
+    const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+    setStatus(completionMessage || "処理が完了しました", "success", `完了 • ${seconds}秒`);
   } catch (error) {
     console.error(error);
-    setStatus(error.message || String(error), true);
+    const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+    setStatus(error.message || String(error), "error", `失敗 • ${seconds}秒`);
   } finally {
+    clearInterval(timer);
+    $("activity").setAttribute("aria-busy", "false");
+    if (activeButton) activeButton.textContent = originalButtonText;
     document.querySelectorAll("button").forEach((button) => { button.disabled = false; });
   }
 }
@@ -95,7 +110,7 @@ async function analyze() {
   const capture = await captureLayers(state.foregroundID, state.backgroundID, 512);
   state.result = await analyzeImages(capture, { mode: $("mode").value, strength: Number($("strength").value) });
   $("results").textContent = formatResults(state.result);
-  setStatus("解析が完了しました");
+  return "解析が完了しました";
 }
 
 async function ensurePreview() {
@@ -110,46 +125,43 @@ async function ensurePreview() {
 
 function wireEvents() {
   $("refreshLayers").addEventListener("click", refreshLayers);
-  $("setForeground").addEventListener("click", () => runBusy("前景を設定しています…", async () => assignActiveLayer("foreground")));
-  $("setBackground").addEventListener("click", () => runBusy("背景を設定しています…", async () => assignActiveLayer("background")));
+  $("setForeground").addEventListener("click", () => runBusy("前景を設定しています…", async () => assignActiveLayer("foreground"), $("setForeground")));
+  $("setBackground").addEventListener("click", () => runBusy("背景を設定しています…", async () => assignActiveLayer("background"), $("setBackground")));
   $("backgroundLayer").addEventListener("change", () => {
     state.backgroundID = Number($("backgroundLayer").value) || null;
     const selected = $("backgroundLayer").options[$("backgroundLayer").selectedIndex];
     $("backgroundName").textContent = selected ? selected.textContent : "未設定";
   });
   $("strength").addEventListener("input", () => { $("strengthValue").textContent = `${$("strength").value}%`; });
-  $("analyze").addEventListener("click", () => runBusy("解析しています…", analyze));
+  $("analyze").addEventListener("click", () => runBusy("画像を解析しています…", analyze, $("analyze")));
   $("preview").addEventListener("click", () => runBusy("プレビューを更新しています…", async () => {
     const created = await ensurePreview();
     if (!created) {
       state.previewVisible = !state.previewVisible;
       await setGroupVisibility(state.groupID, state.previewVisible);
     }
-    setStatus(state.previewVisible ? "プレビュー：オン" : "プレビュー：オフ");
-  }));
+    return state.previewVisible ? "プレビューを表示しました" : "プレビューを非表示にしました";
+  }, $("preview")));
   $("apply").addEventListener("click", () => runBusy("適用しています…", async () => {
     await ensurePreview();
     await setGroupVisibility(state.groupID, true);
     state.previewVisible = true;
     state.groupID = null;
-    setStatus("非破壊調整レイヤーとして適用しました");
-  }));
+    return "非破壊調整レイヤーとして適用しました";
+  }, $("apply")));
   $("reset").addEventListener("click", () => runBusy("リセットしています…", async () => {
     if (state.groupID) await removeGroup(state.groupID);
     state.groupID = null;
     state.result = null;
     $("results").textContent = "前景と背景を設定して解析してください。";
-    setStatus("リセットしました");
-  }));
-  $("startBackend").addEventListener("click", () => runBusy("バックエンドへ接続しています…", connectBackend));
+    return "リセットしました";
+  }, $("reset")));
+  $("startBackend").addEventListener("click", () => runBusy("バックエンドへ接続しています…", connectBackend, $("startBackend")));
 }
 
 entrypoints.setup({ panels: { autoHarmonizePanel: { show() { refreshLayers(); } } } });
 document.addEventListener("DOMContentLoaded", () => {
   wireEvents();
   refreshLayers();
-  connectBackend().catch((error) => {
-    console.error(error);
-    setStatus(`${error.message} 「ローカルAIを起動」で再試行してください。`, true);
-  });
+  runBusy("ローカルAIへ接続しています…", connectBackend);
 });
